@@ -8,6 +8,7 @@ const app = express();
 //Middlewares
 app.use(express.json())
 
+//Helpers
 function veirifyIfExistsAccountCPF(req, res, next) {
     const { cpf } = req.headers;
 
@@ -21,6 +22,19 @@ function veirifyIfExistsAccountCPF(req, res, next) {
     next()
 }
 
+function getBalance(statement) {
+    const balance = statement.reduce((acc, operation) => {
+        if (operation.type === 'credit') {
+            return acc + operation.amount
+        } else {
+            return acc - operation.amount
+        }
+    }, 0)
+
+    return balance
+}
+
+//DB
 const customers = []
 
 //Routes
@@ -60,6 +74,43 @@ app.get("/statement/:cpf", (req, res) => {
     }
 
     return res.json(customer.statement);
+})
+
+app.post("/deposit", veirifyIfExistsAccountCPF, (req, res) => {
+    const { description, amount } = req.body
+
+    const { customer } = req
+
+    const statementOperation = {
+        description,
+        amount,
+        created_at: new Date(),
+        type: "credit"
+    }
+
+    customer.statement.push(statementOperation)
+
+    return res.status(201).send()
+})
+
+app.post("/withdraw", veirifyIfExistsAccountCPF, (req, res) => {
+    const { amount } = req.body
+    const { customer } = req
+
+    const balance = getBalance(customer.statement)
+
+    if (balance < amount) {
+        return res.status(400).json({ error: "Insufficient funds!" })
+    }
+
+    const statementOperation = {
+        amount,
+        created_at: new Date(),
+        type: "credit"
+    }
+
+    customer.statement.push(statementOperation)
+    return res.status(201).send()
 })
 
 //Port
