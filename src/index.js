@@ -8,6 +8,19 @@ const app = express();
 //Middlewares
 app.use(express.json())
 
+function veirifyIfExistsAccountCPF(req, res, next) {
+    const { cpf } = req.headers;
+
+    const customer = customers.find(customer => customer.cpf === cpf)
+
+    if (!customer) {
+        return res.status(400).json({ error: "Customer Not Found!" })
+    }
+
+    req.customer = customer
+    next()
+}
+
 const customers = []
 
 //Routes
@@ -32,24 +45,18 @@ app.post("/account", (req, res) => {
     return res.status(201).send();
 })
 
-app.get("/statement", (req, res) => {
-    const { cpf } = req.headers;
-
-    const customer = customers.find(customer => customer.cpf === cpf)
-    
-    if(!customer){
-        return res.status(400).json({error: "Customer Not Found!"})
-    }
-
+app.get("/statement", veirifyIfExistsAccountCPF, (req, res) => {
+    const { customer } = req
     return res.json(customer.statement);
 })
+
 app.get("/statement/:cpf", (req, res) => {
     const { cpf } = req.params;
 
     const customer = customers.find(customer => customer.cpf === cpf)
-    
-    if(!customer){
-        return res.status(400).json({error: "Customer Not Found!"})
+
+    if (!customer) {
+        return res.status(400).json({ error: "Customer Not Found!" })
     }
 
     return res.json(customer.statement);
