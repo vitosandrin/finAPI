@@ -8,18 +8,24 @@ const app = express();
 //Middlewares
 app.use(express.json())
 
-//Helpers
-function veirifyIfExistsAccountCPF(req, res, next) {
-    const { cpf } = req.headers;
+//DB
+const customers = []
 
-    const customer = customers.find(customer => customer.cpf === cpf)
+
+//Helpers
+function verifyIfExistsAccountCPF(req, res, next) {
+    const { cpf } = req.headers;
+    
+    const customer = customers.find((customer) => customer.cpf === cpf)
 
     if (!customer) {
         return res.status(400).json({ error: "Customer Not Found!" })
     }
 
     req.customer = customer
-    next()
+
+    console.log(customer)
+    return next()
 }
 
 function getBalance(statement) {
@@ -33,9 +39,6 @@ function getBalance(statement) {
 
     return balance
 }
-
-//DB
-const customers = []
 
 //Routes
 app.post("/account", (req, res) => {
@@ -59,7 +62,7 @@ app.post("/account", (req, res) => {
     return res.status(201).send();
 })
 
-app.get("/statement", veirifyIfExistsAccountCPF, (req, res) => {
+app.get("/statement", verifyIfExistsAccountCPF, (req, res) => {
     const { customer } = req
     return res.json(customer.statement);
 })
@@ -76,7 +79,7 @@ app.get("/statement/:cpf", (req, res) => {
     return res.json(customer.statement);
 })
 
-app.post("/deposit", veirifyIfExistsAccountCPF, (req, res) => {
+app.post("/deposit", verifyIfExistsAccountCPF, (req, res) => {
     const { description, amount } = req.body
 
     const { customer } = req
@@ -93,7 +96,7 @@ app.post("/deposit", veirifyIfExistsAccountCPF, (req, res) => {
     return res.status(201).send()
 })
 
-app.post("/withdraw", veirifyIfExistsAccountCPF, (req, res) => {
+app.post("/withdraw", verifyIfExistsAccountCPF, (req, res) => {
     const { amount } = req.body
     const { customer } = req
 
@@ -106,10 +109,33 @@ app.post("/withdraw", veirifyIfExistsAccountCPF, (req, res) => {
     const statementOperation = {
         amount,
         created_at: new Date(),
-        type: "credit"
+        type: "debit"
     }
 
     customer.statement.push(statementOperation)
+    return res.status(201).send()
+})
+
+app.get("/statement/date", verifyIfExistsAccountCPF, (req, res) => {
+    const { customer } = req
+    const { date } = req.query
+
+    const dateFormat = new Date(date + " 00:00")
+
+    const statement = customer.statement.filter(
+        (statement) =>
+            statement.created_at.toDateString() ===
+            new Date(dateFormat).toDateString()
+    )
+
+    return res.json(statement)
+})
+
+app.put("/account", verifyIfExistsAccountCPF, (req, res) => {
+    const { name } = req.body
+    const { customer } = req
+
+    customer.name = name
     return res.status(201).send()
 })
 
